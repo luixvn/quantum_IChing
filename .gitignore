@@ -1,0 +1,13 @@
+# Secrets — keep API keys in environment variables, never in the repo
+.env
+.env.*
+*.key
+
+# Readings saved by the oracle ([s] Save)
+iching_*.txt
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
