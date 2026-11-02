@@ -6,11 +6,9 @@ Uses the ANU Quantum Random Number Generator for genuine quantum randomness,
 with a cryptographically secure OS-entropy fallback.
 
 Usage:
-     % echo 'export ANU_QRNG_API_KEY="KEY"' >> ~/.zshrc
-source ~/.zshrc
+    echo 'export ANU_QRNG_API_KEY="KEY"' >> ~/.zshrc && source ~/.zshrc
 
-    python iching_oracle.py              # normal oracle mode
-    
+    python iching_oracle.py                # normal oracle mode
     python iching_oracle.py --debug 50000  # run 50000 local consultations, print stats
 """
 
@@ -43,31 +41,35 @@ RETRY_DELAY: float = 1.0       # seconds; multiplied by attempt number
 #
 # Binary keys represent lines BOTTOM→TOP: "1"=yang, "0"=yin.
 #
-#   Ch'ien  111  7      K'un  000  0
-#   Chen    100  4      Sun   110  6   ← Sun is yang-yang-yin (bottom→top)
-#   K'an    010  2      Ken   001  1   ← Ken is yin-yin-yang (bottom→top)
-#   Li      101  5      Tui   011  3
+#   Trigram  bits  id     Trigram  bits  id
+#   Ch'ien   111   7      K'un     000   0
+#   Chen     100   4      Sun      011   6   ← yin at BOTTOM: yin, yang, yang
+#   K'an     010   2      Ken      001   1   ← yang at TOP:   yin, yin, yang
+#   Li       101   5      Tui      110   3   ← yin at TOP:    yang, yang, yin
 #
-# BUG FIXED: the original code had Sun ("110") and Ken ("001") swapped.
-# Mountain (Ken) has one yang line at the TOP → yin, yin, yang → "001".
-# Wind/Wood (Sun) has one yin line at the BOTTOM → yang, yang, yin → "110".
+# The "id" is just a label used by KING_WEN_LOOKUP below.
+#
+# BUG FIXED: earlier versions mislabelled Sun, Ken and Tui.
+#   Mountain (Ken ☶) has one yang line at the TOP    → "001".
+#   Wind/Wood (Sun ☴) has one yin line at the BOTTOM → "011".
+#   Lake (Tui ☱) has one yin line at the TOP         → "110".
 
 TRIGRAMS: Dict[str, Dict] = {
     "111": {"symbol": "☰", "name": "Ch'ien", "meaning": "Heaven",   "int": 7},
     "000": {"symbol": "☷", "name": "K'un",   "meaning": "Earth",    "int": 0},
     "100": {"symbol": "☳", "name": "Chen",   "meaning": "Thunder",  "int": 4},
     "010": {"symbol": "☵", "name": "K'an",   "meaning": "Water",    "int": 2},
-    "110": {"symbol": "☴", "name": "Sun",    "meaning": "Wind",     "int": 6},  # Fixed
+    "011": {"symbol": "☴", "name": "Sun",    "meaning": "Wind",     "int": 6},  # Fixed
     "001": {"symbol": "☶", "name": "Ken",    "meaning": "Mountain", "int": 1},  # Fixed
     "101": {"symbol": "☲", "name": "Li",     "meaning": "Fire",     "int": 5},
-    "011": {"symbol": "☱", "name": "Tui",    "meaning": "Lake",     "int": 3},
+    "110": {"symbol": "☱", "name": "Tui",    "meaning": "Lake",     "int": 3},  # Fixed
 }
 
 # ═══════════════════════════════════════════════════════════════════
 # I Ching Data — King Wen Lookup Table
 # ═══════════════════════════════════════════════════════════════════
 # The correct approach is a (lower_int, upper_int) → hexagram_number lookup.
-# Trigram ints follow the binary keys above:
+# Trigram ids are the "int" labels in TRIGRAMS above:
 #   Ch'ien=7  Chen=4  K'an=2  Ken=1  K'un=0  Sun=6  Li=5  Tui=3
 #
 # Verified against the standard Wilhelm/Baynes table.
@@ -89,7 +91,7 @@ KING_WEN_LOOKUP: Dict[Tuple[int, int], int] = {
     (0, 7): 12, (0, 4): 16, (0, 2): 8,  (0, 1): 23,
     (0, 0): 2,  (0, 6): 20, (0, 5): 35, (0, 3): 45,
     # ── lower Sun (6) ─────────────────────────────────────────────
-    (6, 7): 9,  (6, 4): 32, (6, 2): 48, (6, 1): 18,
+    (6, 7): 44, (6, 4): 32, (6, 2): 48, (6, 1): 18,
     (6, 0): 46, (6, 6): 57, (6, 5): 50, (6, 3): 28,
     # ── lower Li (5) ──────────────────────────────────────────────
     (5, 7): 13, (5, 4): 55, (5, 2): 63, (5, 1): 22,
@@ -100,6 +102,8 @@ KING_WEN_LOOKUP: Dict[Tuple[int, int], int] = {
 }
 
 assert len(KING_WEN_LOOKUP) == 64, "Lookup table must have exactly 64 entries."
+assert sorted(KING_WEN_LOOKUP.values()) == list(range(1, 65)), \
+    "Lookup table must map to each hexagram 1–64 exactly once."
 
 # 64 hexagram names in King Wen order; index 0 → hexagram 1.
 HEXAGRAM_NAMES: List[str] = [
